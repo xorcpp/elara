@@ -1931,7 +1931,7 @@ pub async fn check_staged_health(
     };
 
     let api = state.api();
-    let health_result = match api.get_torrent_details_by_hex_or_hash(&info_hash).await {
+    let health_result = match api.api_torrent_details(&info_hash).await {
         Ok(details) => {
             let seeds = details.stats.seeders.unwrap_or(0) as usize;
             let peers = details.stats.leechers.unwrap_or(0) as usize;
