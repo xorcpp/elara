@@ -1891,6 +1891,70 @@ pub async fn restore_inner(state: &AppState, token: RestoreToken) -> CmdResult<u
     .map(|(id, _)| id)
     .map_err(|e| format!("could not put the torrent back: {e}"))
 }
+#[derive(Serialize, Clone)]
+pub struct StagedHealth {
+    pub seeds: usize,
+    pub peers: usize,
+    pub healthy: bool,
+    pub message: String,
+}
+
+#[tauri::command]
+pub async fn check_staged_health(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> CmdResult<StagedHealth> {
+    let staged = {
+        let guard = state.staged.lock();
+        guard.get(&token).cloned().ok_or_else(|| "Staged torrent not found".to_string())?
+    };
+
+    if staged.source.is_empty() {
+        return Ok(StagedHealth {
+            seeds: 0,
+            peers: 0,
+            healthy: false,
+            message: "Invalid or empty torrent source".to_string(),
+        });
+    }
+
+    let info_hash = match &staged.info_hash {
+        Some(h) => h.clone(),
+        None => {
+            return Ok(StagedHealth {
+                seeds: 0,
+                peers: 0,
+                healthy: false,
+                message: "Metadata not resolved yet. Please wait for metadata load.".to_string(),
+            });
+        }
+    };
+
+    let api = state.api();
+    let health_result = match api.get_torrent_details_by_hex_or_hash(&info_hash).await {
+        Ok(details) => {
+            let seeds = details.stats.seeders.unwrap_or(0) as usize;
+            let peers = details.stats.leechers.unwrap_or(0) as usize;
+            let healthy = seeds > 0 || peers > 0;
+            let message = if healthy {
+                format!("Health check passed: Found {} seeds, {} peers.", seeds, peers)
+            } else {
+                format!("Warning: No active seeds or peers found for this torrent.")
+            };
+            StagedHealth { seeds, peers, healthy, message }
+        }
+        Err(_) => {
+            StagedHealth {
+                seeds: 0,
+                peers: 0,
+                healthy: false,
+                message: "Waiting for swarm connection or torrent details...".to_string(),
+            }
+        }
+    };
+
+    Ok(health_result)
+}
 
 #[cfg(test)]
 mod tests {
@@ -3315,64 +3379,4 @@ mod tests {
             Some("/other".to_string())
         );
     }
-	#[derive(Serialize, Clone)]
-pub struct StagedHealth {
-    pub seeds: usize,
-    pub peers: usize,
-    pub healthy: bool,
-    pub message: String,
-}
-
-#[tauri::command]
-pub async fn check_staged_health(
-    state: tauri::State<'_, AppState>,
-    token: String,
-) -> CmdResult<StagedHealth> {
-    let staged = {
-        let guard = state.staged.lock();
-        guard.get(&token).cloned().ok_or_else(|| "Staged torrent not found".to_string())?
-    };
-
-    if staged.source.is_empty() {
-        return Ok(StagedHealth {
-            seeds: 0,
-            peers: 0,
-            healthy: false,
-            message: "Invalid or empty torrent source".to_string(),
-        });
-    }
-
-    let _info_hash = match &staged.info_hash {
-        Some(h) => h.clone(),
-        None => {
-            return Ok(StagedHealth {
-                seeds: 0,
-                peers: 0,
-                healthy: false,
-                message: "Metadata not resolved yet. Please wait for metadata load.".to_string(),
-            });
-        }
-    };
-
-    let session = state.session();
-    let stats = session.stats();
-
-    let active_seeds = stats.active_seeds as usize;
-    let peers_live = stats.peers_live as usize;
-
-    let healthy = active_seeds > 0 || peers_live > 0;
-    let message = if healthy {
-        format!("Health check passed: Found {} active seeds / peers.", active_seeds + peers_live)
-    } else {
-        format!("Warning: No active seeds or peers found currently. Torrent may stall.")
-    };
-
-    Ok(StagedHealth {
-        seeds: active_seeds,
-        peers: peers_live,
-        healthy,
-        message,
-    })
-}
-
 }
