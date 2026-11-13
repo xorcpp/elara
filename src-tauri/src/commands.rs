@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use librqbit::api::TorrentIdOrHash;
 
 use bytes::Bytes;
 use librqbit::{AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, Session};
@@ -1931,7 +1932,7 @@ pub async fn check_staged_health(
     };
 
     let api = state.api();
-    let health_result = match api.api_torrent_details(&info_hash).await {
+    let health_result = match api.api_torrent_details(TorrentIdOrHash::HashHex(info_hash)) {
         Ok(details) => {
             let seeds = details.stats.seeders.unwrap_or(0) as usize;
             let peers = details.stats.leechers.unwrap_or(0) as usize;
