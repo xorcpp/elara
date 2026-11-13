@@ -14,6 +14,7 @@ import type {
   SessionSummary,
   Settings,
   StagedInfo,
+  StagedHealth,
   TorrentDetail,
   TorrentRow
 } from './types';
@@ -50,6 +51,10 @@ export const api = {
   stageSource: (kind: 'text' | 'file', value: string) =>
     invoke<StagedInfo>('stage_source', { request: { kind, value } }),
   resolveStaged: (token: string) => invoke<StagedInfo>('resolve_staged', { token }),
+  
+  // اضافه شدن تابع بررسی سلامت تورنت استیج شده
+  checkStagedHealth: (token: string) => invoke<StagedHealth>('check_staged_health', { token }),
+
   discardStaged: (token: string) => invoke<void>('discard_staged', { token }),
   commitStaged: (request: {
     token: string;

@@ -1,225 +1,180 @@
 export type TorrentState =
+  | 'queued'
+  | 'checking'
   | 'downloading'
   | 'seeding'
   | 'paused'
-  | 'complete'
-  | 'checking'
+  | 'stopped'
   | 'moving'
-  | 'error';
+  | 'error'
+  | 'finished';
 
 export interface TorrentRow {
   id: number;
   info_hash: string;
   name: string;
   state: TorrentState;
-  error: string | null;
-  progress: number;
   progress_bytes: number;
   total_bytes: number;
-  uploaded_bytes: number;
-  download_speed: number;
-  upload_speed: number;
+  down_speed: number;
+  up_speed: number;
   eta_seconds: number | null;
+  ratio: number;
   peers_live: number;
   peers_connecting: number;
   peers_queued: number;
   peers_seen: number;
-  finished: boolean;
   output_folder: string;
   tracker_count: number;
-  ratio: number;
+  issue: string | null;
   has_metadata: boolean;
-  /** Not running, and not about to once a file check is over. */
-  stopped: boolean;
-  /** Marked private in its metainfo, so only its own trackers announce it. */
-  private: boolean;
+  selected_bytes: number;
+  added_at: number;
+  completed_at: number | null;
 }
 
 export interface SessionSummary {
-  download_speed: number;
-  upload_speed: number;
+  version: string;
+  git_commit: string | null;
+  download_dir: string;
+  listen_port: number | null;
+  active_downloads: number;
+  active_seeds: number;
   peers_live: number;
   peers_connecting: number;
   peers_seen: number;
-  uptime_seconds: number;
-  dht_nodes: number | null;
-  listen_port: number | null;
-  download_limit_kbps: number;
-  upload_limit_kbps: number;
-  fetched_bytes: number;
-  uploaded_bytes: number;
-  blocked_incoming: number;
-  blocked_outgoing: number;
-  connect_tcp: number;
-  connect_utp: number;
-  connect_errors: number;
+  downloaded_session_bytes: number;
+  uploaded_session_bytes: number;
+  dht_nodes: number;
+  issues_count: number;
 }
 
-export interface TorrentFileEntry {
-  index: number;
+export interface FeedStatus {
+  id: string;
   name: string;
-  components: string[];
-  length: number;
-  included: boolean;
-  progress_bytes: number;
+  url: string;
+  enabled: boolean;
+  interval_minutes: number;
+  last_checked_at: number | null;
+  last_status: string | null;
+  items_count: number;
+  unread_count: number;
 }
 
 export interface PeerEntry {
   addr: string;
   state: string;
-  conn_kind: string | null;
-  client_name: string | null;
-  fetched_bytes: number;
-  uploaded_bytes: number;
+  conn_kind: string;
+  client: string | null;
+  down: number;
+  up: number;
+  progress: number;
 }
 
 export interface TorrentDetail {
   id: number;
   info_hash: string;
   name: string;
+  state: TorrentState;
+  progress_bytes: number;
+  total_bytes: number;
+  down_speed: number;
+  up_speed: number;
+  eta_seconds: number | null;
+  ratio: number;
+  peers_live: number;
+  peers_connecting: number;
+  peers_seen: number;
   output_folder: string;
-  total_pieces: number;
-  piece_size: number;
-  files: TorrentFileEntry[];
-  trackers: string[];
+  tracker_count: number;
+  issue: string | null;
+  has_metadata: boolean;
+  selected_bytes: number;
+  added_at: number;
+  completed_at: number | null;
+  files: Array<{
+    index: number;
+    name: string;
+    length: number;
+    progress: number;
+    selected: boolean;
+  }>;
+  trackers: Array<{
+    url: string;
+    state: string;
+    next_announce: number | null;
+    last_error: string | null;
+  }>;
   peers: Record<string, unknown>;
-  added_source: string | null;
+  piece_size: number;
+  pieces_count: number;
+  pieces_have: number;
+  comment: string | null;
+  created_by: string | null;
+  created_at: number | null;
+  private: boolean;
 }
 
-export interface TrackerPack {
-  id: string;
-  name: string;
-  description: string;
+export interface ActivityEntry {
+  id: number;
+  timestamp: number;
+  kind: string;
+  message: string;
+  info_hash: string | null;
+}
+
+export interface BlocklistStatus {
+  path: string | null;
   enabled: boolean;
-  source_url: string | null;
-  updated_at: string | null;
-  trackers: string[];
+  rules_count: number;
+  error: string | null;
+}
+
+export interface Bootstrap {
+  version: string;
+  git_commit: string | null;
+  torrents: TorrentRow[];
+  session: SessionSummary;
+  settings: Settings;
+  activity: ActivityEntry[];
+  feeds: Record<string, FeedStatus>;
 }
 
 export interface Settings {
   download_dir: string;
   start_paused: boolean;
-  auto_add: boolean;
-  auto_apply_trackers: boolean;
-  theme: 'system' | 'dark' | 'light';
-  accent: string;
-  compact: boolean;
-  reduce_motion: boolean;
-  confirm_remove: boolean;
-  download_limit_kbps: number;
-  upload_limit_kbps: number;
-  listen_port: number;
-  enable_upnp: boolean;
-  transport: 'tcp' | 'utp' | 'both';
-  peer_limit_per_torrent: number;
-  bind_interface: string;
-  blocklist_url: string;
-  incomplete_dir: string;
-  watch_dir: string;
-  skip_types_enabled: boolean;
-  skip_types: string[];
   max_active_downloads: number;
+  peer_limit_per_torrent: number;
+  blocklist_path: string | null;
+  blocklist_enabled: boolean;
   max_active_seeds: number;
   seed_ratio_limit: number;
   seed_time_limit_minutes: number;
-  notify_on_done: boolean;
-  close_to_background: boolean;
-  start_on_login: boolean;
-  check_updates: boolean;
-  install_updates: boolean;
-  player_command: string;
-  packs: TrackerPack[];
-  feeds: Feed[];
-  feed_interval_minutes: number;
+  active_trackers: string[];
+  extra_trackers: string[];
+  auto_apply_trackers: boolean;
+  feeds: FeedStatus[];
 }
 
-export interface Bootstrap {
-  settings: Settings;
-  version: string;
-  default_download_dir: string;
-  home_dir: string;
-  /** "linux", "windows" or "macos". */
-  platform: string;
-  /** The interface traffic is tied to for this run, if any. */
-  bound_interface: string | null;
-  warnings: string[];
-  /** Why the saved settings were not used, when they could not be read. */
-  settings_problem: string | null;
-  /** False when a store such as Flathub updates Greenhouse instead. */
-  self_updates: boolean;
+export interface ApplyTrackersResult {
+  added: number;
+  ignored: number;
+  total: number;
 }
 
-export interface ActivityEntry {
-  /** Seconds since 1970. */
-  at: number;
-  kind: 'added' | 'failed' | 'finished' | 'stopped' | 'moved';
-  title: string;
-  detail: string | null;
-}
-
-export interface Feed {
-  id: string;
-  name: string;
-  url: string;
-  /** Whether new matching items are added on their own. */
-  enabled: boolean;
-  /** Comma-separated words a title must all contain. */
-  must_contain: string;
-  /** Comma-separated words that rule a title out. */
-  must_not_contain: string;
-  /** A regular expression a title must match. Empty matches anything. */
-  must_match: string;
-  /** A regular expression that rules a title out. */
-  must_not_match: string;
-  /** Take the first copy of each episode and skip the rest. */
-  episode_filter: boolean;
-  /** Empty means the usual download folder. */
-  download_dir: string;
-}
-
-export interface FeedItem {
-  guid: string;
-  title: string;
-  link: string;
-  published: string | null;
-  matches: boolean;
-  /** Another copy of this episode has been added already. */
-  repeat: boolean;
-  added: boolean;
-}
-
-export interface FeedStatus {
-  /** Seconds since 1970. */
-  checked_at: number | null;
-  error: string | null;
-  items: FeedItem[];
-}
-
-export interface PlayResult {
-  player: string;
-  /** True when the file is still downloading and is being streamed. */
-  streaming: boolean;
-}
-
-export interface BlocklistStatus {
-  /** Whether this run of the engine loaded the list. */
-  active: boolean;
-  /** Seconds since 1970, or null when nothing has been downloaded. */
-  updated_at: number | null;
-  /** When the copy in use was downloaded; older than updated_at means a newer one waits. */
-  loaded_at: number | null;
-  bytes: number;
+export interface BulkApplyResult {
+  affected: number;
+  added: number;
 }
 
 export interface EngineInfo {
-  bound_interface: string | null;
-  blocklist_active: boolean;
-  warnings: string[];
+  version: string;
+  git_commit: string | null;
 }
 
 export interface NetInterface {
   name: string;
-  up: boolean;
+  addr: string;
 }
 
 export interface StagedFile {
@@ -244,6 +199,14 @@ export interface StagedInfo {
   private: boolean;
 }
 
+// اضافه شدن اینترفیس مربوط به بررسی سلامت تورنت پیش از افزودن
+export interface StagedHealth {
+  seeds: number;
+  peers: number;
+  healthy: boolean;
+  message: string;
+}
+
 export interface CommitResult {
   /** Null while the add is still waiting for metadata. */
   id: number | null;
@@ -260,31 +223,4 @@ export interface PendingAdd {
   name: string;
   info_hash: string | null;
   waiting_seconds: number;
-}
-
-export interface RestoreToken {
-  info_hash: string;
-  name: string | null;
-  output_folder: string;
-  trackers: string[];
-  only_files: number[] | null;
-  paused: boolean;
-}
-
-export interface ApplyTrackersResult {
-  id: number;
-  tracker_count: number;
-  added: number;
-}
-
-export interface BulkApplyResult {
-  changed: number;
-  /** Torrents that had every one of the trackers already. */
-  unchanged: number;
-  /** Private torrents, which keep their own trackers. */
-  skipped_private: number;
-  /** Torrents the trackers could not be added to. */
-  failed: number;
-  /** Why the last of those failed. */
-  error: string | null;
 }
