@@ -1919,23 +1919,11 @@ pub async fn check_staged_health(
         });
     }
 
-    let _info_hash = match &staged.info_hash {
-        Some(h) => h.clone(),
-        None => {
-            return Ok(StagedHealth {
-                seeds: 0,
-                peers: 0,
-                healthy: false,
-                message: "Metadata not resolved yet. Please wait for metadata load.".to_string(),
-            });
-        }
-    };
-
-    let session = state.session();
-    let stats = session.stats();
-
-    let active_seeds = stats.active_seeds as usize;
-    let peers_live = stats.peers_live as usize;
+    // بررسی وضعیت با استفاده از خلاصه وضعیت سشن (SessionSummary)
+    let summary = engine::session_summary(&state.session(), &state.settings.read());
+    
+    let active_seeds = summary.active_seeds.unwrap_or(0) as usize;
+    let peers_live = summary.peers.unwrap_or(0) as usize;
 
     let healthy = active_seeds > 0 || peers_live > 0;
     let message = if healthy {
@@ -1951,6 +1939,7 @@ pub async fn check_staged_health(
         message,
     })
 }
+
 
 
 #[cfg(test)]
