@@ -1919,7 +1919,7 @@ pub async fn check_staged_health(
         });
     }
 
-    let info_hash = match &staged.info_hash {
+    let _info_hash = match &staged.info_hash {
         Some(h) => h.clone(),
         None => {
             return Ok(StagedHealth {
@@ -1931,31 +1931,27 @@ pub async fn check_staged_health(
         }
     };
 
-    let api = state.api();
-    let health_result = match api.api_torrent_details(TorrentIdOrHash::HashHex(info_hash)) {
-        Ok(details) => {
-            let seeds = details.stats.seeders.unwrap_or(0) as usize;
-            let peers = details.stats.leechers.unwrap_or(0) as usize;
-            let healthy = seeds > 0 || peers > 0;
-            let message = if healthy {
-                format!("Health check passed: Found {} seeds, {} peers.", seeds, peers)
-            } else {
-                format!("Warning: No active seeds or peers found for this torrent.")
-            };
-            StagedHealth { seeds, peers, healthy, message }
-        }
-        Err(_) => {
-            StagedHealth {
-                seeds: 0,
-                peers: 0,
-                healthy: false,
-                message: "Waiting for swarm connection or torrent details...".to_string(),
-            }
-        }
+    let session = state.session();
+    let stats = session.stats();
+
+    let active_seeds = stats.active_seeds as usize;
+    let peers_live = stats.peers_live as usize;
+
+    let healthy = active_seeds > 0 || peers_live > 0;
+    let message = if healthy {
+        format!("Health check passed: Found {} active peer(s)/seed(s).", active_seeds + peers_live)
+    } else {
+        "Warning: No active peers or seeds connected currently.".to_string()
     };
 
-    Ok(health_result)
+    Ok(StagedHealth {
+        seeds: active_seeds,
+        peers: peers_live,
+        healthy,
+        message,
+    })
 }
+
 
 #[cfg(test)]
 mod tests {
