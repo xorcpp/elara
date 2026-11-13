@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use librqbit::api::TorrentIdOrHash;
 
 use bytes::Bytes;
 use librqbit::{AddTorrent, AddTorrentOptions, AddTorrentResponse, Api, Session};
@@ -1919,21 +1917,20 @@ pub async fn check_staged_health(
         });
     }
 
-    // بررسی وضعیت با استفاده از خلاصه وضعیت سشن (SessionSummary)
     let summary = engine::session_summary(&state.session(), &state.settings.read());
     
-    let active_seeds = summary.active_seeds.unwrap_or(0) as usize;
-    let peers_live = summary.peers.unwrap_or(0) as usize;
+    let peers_live = summary.peers_live as usize;
+    let peers_seen = summary.peers_seen as usize;
 
-    let healthy = active_seeds > 0 || peers_live > 0;
+    let healthy = peers_live > 0 || peers_seen > 0;
     let message = if healthy {
-        format!("Health check passed: Found {} active peer(s)/seed(s).", active_seeds + peers_live)
+        format!("Health check passed: Found {} live peer(s) ({} seen).", peers_live, peers_seen)
     } else {
-        "Warning: No active peers or seeds connected currently.".to_string()
+        "Warning: No active peers connected currently.".to_string()
     };
 
     Ok(StagedHealth {
-        seeds: active_seeds,
+        seeds: peers_seen,
         peers: peers_live,
         healthy,
         message,
